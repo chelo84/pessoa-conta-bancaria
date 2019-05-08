@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Conta Bancária</title>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://unpkg.com/popper.js@1.12.6/dist/umd/popper.js" integrity="sha384-fA23ZRQ3G/J53mElWqVJEGJzU0sTs+SvzG8fXVWP+kJQ1lwFAOkcUOysnlKJC33U" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/bootstrap-material-design@4.1.1/dist/js/bootstrap-material-design.js" integrity="sha384-CauSuKpEqAFajSpkdjv3z9t8E7RlpJ1UP0lKM/+NdtSarroVKu069AlsRPKkFBz9" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.10/jquery.mask.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
+    <style>
+        .w-50 {
+            width: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="col-md-12 border border-light p-5">
+        <div class="row">
+            <div class="col-md-6">
+                <div id="card" class="card">
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <strong>Registrar pessoa</strong>
+                    </h5>
+                    <div class="card-body px-lg-5 pt-4">
+                        <form id="formPessoa">
+                            <div class="form-row mb-4">
+                                <div class="col pr-5">
+                                    <div class="md-form">
+                                        <input type="text" id="nome" name="nome" class="form-control" placeholder="Nome" required>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="md-form">
+                                        <input type="text" id="sobrenome" name="sobrenome" class="form-control" placeholder="Sobrenome" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <input type="text" pattern=".{10,}" title="Insira a data completa" id="dataNascimento" name="dataNascimento" class="form-control" placeholder="Data de nascimento" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <select id="pessoaTipo" name="pessoaTipo" class="form-control" placeholder="Tipo" required>
+                                            <option value="FISICA" selected>Física</option>
+                                            <option value="JURIDICA">Jurídica</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <input type="text" id="cpfCnpj" name="cpfCnpj" class="form-control" placeholder="CPF/CNPJ" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-info btn-rounded btn-block z-depth-0 my-4 waves-effect" type="submit" id="criarPessoa">Criar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <strong>Info</strong>
+                    </h5>
+                    <div id="infoBody" class="card-body px-lg-5 pt-4 text-center" style="min-height: 330px;">
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.pessoa = null;
+
+        var render = {
+            cadastrarPessoa: () => {
+                $('#dataNascimento').mask("00/00/0000")
+                $('#cpfCnpj').mask("000.000.000-00")
+
+                $('#pessoaTipo').unbind();
+                $('#pessoaTipo').change(function() {
+                    if($(this).val() == "FISICA") {
+                        $('#cpfCnpj').mask("000.000.000-00")
+                    } else {
+                        $('#cpfCnpj').mask("00.000.000/0000-00")
+                    }
+                })
+
+                $('#criarPessoa').click(function(ev) {
+                    ev.preventDefault();
+                    var form = document.getElementById("formPessoa");
+                    if(form.checkValidity() && $('#dataNascimento').val().length >= 10) {
+                        $('#cpfCnpj').unmask();
+                        let data = getFormData($('#formPessoa'));
+                        dateSplitted = data.dataNascimento.split('/');
+                        dateSplitted = dateSplitted[2] +"-"+ dateSplitted[1] +"-"+ dateSplitted[0];
+                        data.dataNascimento = dateSplitted;
+
+                        $.ajax({
+                            cache: false,
+                            type: "POST",
+                            url: "/pessoa",
+                            dataType: "json",
+                            contentType: "application/json;",
+                            data: JSON.stringify(data),
+                        }).done(function (resp) {
+                            window.pessoa = resp;
+
+                            render.cadastrarContaBancaria();
+
+                            ev.preventDefault();
+                        });
+                    } else {
+                        form.reportValidity();
+                    }
+                })
+            },
+
+            cadastrarContaBancaria: () => {
+                let card = `
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <strong>Registrar conta bancária</strong>
+                    </h5>
+                    <div class="card-body px-lg-5 pt-4">
+                        <form id="formConta">
+                            <input type="hidden" id="pessoa" name="pessoa" value="${window.pessoa.id}"/>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <input type="text" id="conta" name="conta" class="form-control" placeholder="Conta" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <input type="text" id="agencia" name="agencia" class="form-control" placeholder="Agência" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <input type="text" id="digito" name="digito" class="form-control" placeholder="Dígito" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row mb-4">
+                                <div class="col">
+                                    <div class="md-form">
+                                        <select id="contaTipo" name="contaTipo" class="form-control" placeholder="Tipo" required>
+                                            <option value="CORRENTE" selected>Corrente</option>
+                                            <option value="POUPANCA">Poupança</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-info btn-rounded btn-block z-depth-0 my-4 waves-effect" type="submit" id="criarConta">Criar</button>
+                        </form>
+                    </div>`
+                $('#card').html(card);
+
+                $('#criarConta').click(function(ev) {
+                    ev.preventDefault();
+                    var form = document.getElementById("formConta");
+                    if(form.checkValidity()) {
+                        let data = getFormData($('#formConta'));
+
+                        $.ajax({
+                            cache: false,
+                            type: "POST",
+                            url: "/conta-bancaria",
+                            dataType: "json",
+                            contentType: "application/json;",
+                            data: JSON.stringify(data),
+                        }).done(function (resp) {
+                            window.pessoa.contaBancaria = resp;
+                            render.cadastrarContaBancaria();
+
+                            render.menuContaBancaria();
+
+                            ev.preventDefault();
+                        });
+                    } else {
+                        form.reportValidity();
+                    }
+                })
+            },
+
+            menuContaBancaria: () => {
+                let card = `
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <strong>Menu conta bancária</strong>
+                    </h5>
+                    <div class="card-body px-lg-5 pt-4">
+                        <div class="d-flex justify-content-center align-items-center flex-column">
+                            <button class="btn btn-outline-success btn-rounded btn-block z-depth-0 w-50 my-4 waves-effect" type="button" id="depositar">Depositar</button>
+                            <button class="btn btn-outline-success btn-rounded btn-block z-depth-0 w-50 my-4 waves-effect" type="button" id="sacar">Sacar</button>
+                            <button class="btn btn-outline-success btn-rounded btn-block z-depth-0 w-50 my-4 waves-effect" type="button" id="extrato">Tirar Extrato</button>
+                        </div>
+                    </div>`
+                $('#card').html(card);
+
+                $('#depositar').unbind();
+                $('#depositar').click((ev) => {
+                    ev.preventDefault();
+
+                    render.depositar();
+                });
+
+                $('#sacar').unbind();
+                $('#sacar').click((ev) => {
+                    ev.preventDefault();
+
+                    render.sacar();
+                });
+
+                $('#extrato').unbind();
+                $('#extrato').click((ev) => {
+                    ev.preventDefault();
+
+                    render.tirarExtrato();
+                });
+            },
+
+            depositar: () => {
+                let card = `
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <strong>Depositar</strong>
+                    </h5>
+                    <div class="card-body px-lg-5 pt-4">
+                        <form id="formDepositar">
+                            <input type="hidden" id="pessoa" name="pessoa" value="${window.pessoa.id}" />
+                            <div class="d-flex justify-content-center align-items-center flex-column">
+                                <input type="text" id="valor" name="valor" class="form-control" placeholder="Valor" required>
+                            </div>
+                            <button class="btn btn-outline-info btn-rounded btn-block z-depth-0 my-4 waves-effect" type="submit" id="depositarEnviar">Depositar</button>
+                        </form>
+                    </div>`
+                $('#card').html(card);
+
+                $('#valor').mask("000.000.000.000.000,00", {reverse: true});
+
+                $('#depositarEnviar').unbind();
+                $('#depositarEnviar').click(function(ev) {
+                    ev.preventDefault();
+                    var form = document.getElementById("formDepositar");
+                    if(form.checkValidity()) {
+                        let $valor = $('#valor'),
+                            valorDepositado = $valor.val();
+                        $valor.val($valor.val().replace('.',''))
+                        $valor.val($valor.val().replace(',','.'))
+
+                        let data = getFormData($('#formDepositar'));
+
+                        $.ajax({
+                            cache: false,
+                            type: "POST",
+                            url: "/pessoa/depositar",
+                            dataType: "json",
+                            contentType: "application/json;",
+                            data: JSON.stringify(data),
+                        }).done(function (resp) {
+                            window.pessoa.contaBancaria.saldo = resp;
+
+                            let info = `
+                                <div>
+                                    <strong>Depositado R$ ${valorDepositado}</strong>
+                                </div>
+                            `
+                            $('#infoBody').html(info);
+
+                            render.menuContaBancaria();
+
+                            ev.preventDefault();
+                        });
+                    } else {
+                        form.reportValidity();
+                    }
+                })
+            },
+
+            sacar: () => {
+                let card = `
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <i class="fas fa-arrow-left" style="float: left;"/>
+                        <strong>Sacar</strong>
+                    </h5>
+                    <div class="card-body px-lg-5 pt-4">
+                        <form id="formSacar">
+                            <input type="hidden" id="pessoa" name="pessoa" value="${window.pessoa.id}" />
+                            <div class="d-flex justify-content-center align-items-center flex-column">
+                                <input type="text" id="valor" name="valor" class="form-control" placeholder="Valor" required>
+                            </div>
+                            <button class="btn btn-outline-info btn-rounded btn-block z-depth-0 my-4 waves-effect" type="submit" id="sacarEnviar">Depositar</button>
+                        </form>
+                    </div>`
+                $('#card').html(card);
+
+                $('#valor').mask("000.000.000.000.000,00", {reverse: true});
+
+                $('#sacarEnviar').unbind();
+                $('#sacarEnviar').click(function(ev) {
+                    ev.preventDefault();
+                    var form = document.getElementById("formSacar");
+                    if(form.checkValidity()) {
+                        let $valor = $('#valor'),
+                            valorSacado = $valor.val();
+                        $valor.val($valor.val().replace('.',''))
+                        $valor.val($valor.val().replace(',','.'))
+
+                        let data = getFormData($('#formSacar'));
+
+                        $.ajax({
+                            cache: false,
+                            type: "POST",
+                            url: "/pessoa/sacar",
+                            dataType: "json",
+                            contentType: "application/json;",
+                            data: JSON.stringify(data),
+                        }).done(function (resp) {
+                            window.pessoa.contaBancaria.saldo = resp;
+
+                            let info = `
+                                <div>
+                                    <strong>Sacado R$ ${valorSacado}</strong>
+                                </div>
+                            `
+                            $('#infoBody').html(info);
+
+                            ev.preventDefault();
+                        }).fail(function(error) {
+                            let info = `
+                                <div>
+                                    <strong class="text-danger">${error.responseText}</strong>
+                                </div>
+                            `
+                            $('#infoBody').html(info);
+                        }).always(function() {
+                            render.menuContaBancaria();
+                        });
+                    } else {
+                        form.reportValidity();
+                    }
+                })
+            },
+
+            tirarExtrato: () => {
+                let card = `
+                    <h5 class="card-header white-text text-center py-4" style="background-color: #33b5e5; color: #ffffff;">
+                        <i class="fas fa-arrow-left" style="float: left;"/>
+                        <strong>Sacar</strong>
+                    </h5>
+                    <div class="card-body px-lg-5 pt-4">
+                        <form id="formExtrato">
+                            <input type="hidden" id="pessoa" name="pessoa" value="${window.pessoa.id}" />
+                             <div class="form-row mb-4">
+                                <div class="col pr-2">
+                                    <div class="md-form">
+                                        <input type="text" id="dataInicio" name="dataInicio" class="form-control" placeholder="Inicio" required>
+                                    </div>
+                                </div>
+                                <strong>até</strong>
+                                <div class="col pl-2">
+                                    <div class="md-form">
+                                        <input type="text" id="dataFim" name="dataFim" class="form-control" placeholder="Fim" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-info btn-rounded btn-block z-depth-0 my-4 waves-effect" type="submit" id="extratoEnviar">Tirar Extrato</button>
+                        </form>
+                    </div>`
+                $('#card').html(card);
+
+                $('#dataInicio').mask("00/00/0000")
+                $('#dataFim').mask("00/00/0000")
+
+                $('#extratoEnviar').unbind();
+                $('#extratoEnviar').click(function(ev) {
+                    ev.preventDefault();
+                    var form = document.getElementById("formExtrato");
+                    if(form.checkValidity()) {
+                        let data = getFormData($('#formExtrato'));
+                        dateSplitted = data.dataInicio.split('/');
+                        dateSplitted = dateSplitted[2] +"-"+ dateSplitted[1] +"-"+ dateSplitted[0];
+                        data.dataInicio = dateSplitted;
+
+                        dateSplitted = data.dataFim.split('/');
+                        dateSplitted = dateSplitted[2] +"-"+ dateSplitted[1] +"-"+ dateSplitted[0];
+                        data.dataFim = dateSplitted;
+
+                        $.ajax({
+                            cache: false,
+                            type: "POST",
+                            url: "/pessoa/tirar-extrato",
+                            dataType: "json",
+                            contentType: "application/json;",
+                            data: JSON.stringify(data),
+                        }).done(function (resp) {
+                            let info = ``;
+
+                            resp.transacoes.map((transacao, idx) => {
+                                info += `
+                                    <div>
+                                        <strong>Data: ${transacao.dataTransacao}</strong></br>
+                                        <strong>Valor: R$ ${transacao.valor}</strong></br>
+                                        <strong style="text-transform: capitalize;">Tipo: ${transacao.transacaoTipo}</strong></br>
+                                        <strong>---------------------------------------------</strong>
+                                    </div>`
+                            })
+
+                            info += `
+                                <div>
+                                    <strong>Saldo: ${window.pessoa.contaBancaria.saldo}</strong>
+                                </div>`
+
+                            $('#infoBody').html(info);
+
+                            ev.preventDefault();
+                        }).always(function() {
+                            render.menuContaBancaria();
+                        });
+                    } else {
+                        form.reportValidity();
+                    }
+                })
+            }
+        };
+
+        $(document).ready(function() {
+            render.cadastrarPessoa();
+
+        });
+
+        function getFormData($form){
+            var unindexed_array = $form.serializeArray();
+            var indexed_array = {};
+
+            $.map(unindexed_array, function(n, i){
+                indexed_array[n['name']] = n['value'];
+            });
+
+            return indexed_array;
+        }
+    </script>
+</body>
+</html>
